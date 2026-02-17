@@ -10,6 +10,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.*;
 import java.util.stream.Collectors;
+import java.math.BigDecimal; 
 
 @RestController
 @RequestMapping("/api")
@@ -31,7 +32,6 @@ public class MovieController {
     @Autowired
     private MovieCollectionRepository movieCollectionRepository;
 
-    // Compare movies endpoint
     @PostMapping("/compare")
     public ResponseEntity<ComparisonResponse> compareMovies(
             @RequestBody ComparisonRequest request) {
@@ -39,7 +39,6 @@ public class MovieController {
         return ResponseEntity.ok(response);
     }
 
-    // Get top 10 movies by town
     @GetMapping("/top-movies-by-town")
     public ResponseEntity<Map<String, List<MovieComparisonDTO>>> getTopMoviesByTown(
             @RequestParam(required = false) String dayCode,
@@ -49,7 +48,6 @@ public class MovieController {
         return ResponseEntity.ok(result);
     }
 
-    // Get heroes with their movies
     @GetMapping("/heroes-with-movies")
     public ResponseEntity<List<HeroWithMoviesDTO>> getHeroesWithMovies() {
         List<Hero> heroes = heroRepository.findAll();
@@ -68,7 +66,6 @@ public class MovieController {
         return ResponseEntity.ok(result);
     }
 
-    // Get towns grouped by territory
     @GetMapping("/towns-by-territory")
     public ResponseEntity<Map<String, List<String>>> getTownsByTerritory() {
         List<Town> towns = townRepository.findAll();
@@ -80,26 +77,24 @@ public class MovieController {
         return ResponseEntity.ok(territoryMap);
     }
 
-    // Test endpoint
     @GetMapping("/test")
     public ResponseEntity<String> testEndpoint() {
         return ResponseEntity.ok("Backend is working! ✅");
     }
 
-    // ✅ NEW: Add movie with multiple collections
     @PostMapping("/add-movie-with-collections")
     public ResponseEntity<Map<String, Object>> addMovieWithCollections(
             @RequestBody MovieInputDTO movieInput) {
         try {
             movieService.ingestCollection(movieInput);
-            
+
             Map<String, Object> response = new HashMap<>();
             response.put("success", true);
             response.put("message", "Movie and collections added/updated successfully");
             response.put("movieCode", movieInput.getMovieCode());
             response.put("dayCode", movieInput.getDayCode());
             response.put("townsUpdated", movieInput.getCollections().size());
-            
+
             return ResponseEntity.ok(response);
         } catch (Exception e) {
             Map<String, Object> response = new HashMap<>();
@@ -109,24 +104,22 @@ public class MovieController {
         }
     }
 
-    // Add single collection
     @PostMapping("/add-collection")
     public ResponseEntity<Map<String, Object>> addSingleCollection(@RequestBody Map<String, Object> request) {
         try {
             String movieCode = (String) request.get("movieCode");
             String townName = (String) request.get("townName");
             String dayCode = (String) request.get("dayCode");
-            Double amountLakhs = Double.parseDouble(request.get("amountLakhs").toString());
 
-            // Find movie
+            Double amountLakhsDouble = Double.parseDouble(request.get("amountLakhs").toString());
+            BigDecimal amountLakhs = BigDecimal.valueOf(amountLakhsDouble); // ✅ FIX
+
             Movie movie = movieRepository.findByMovieCode(movieCode)
                 .orElseThrow(() -> new RuntimeException("Movie not found: " + movieCode));
 
-            // Find town
             Town town = townRepository.findByTownName(townName)
                 .orElseThrow(() -> new RuntimeException("Town not found: " + townName));
 
-            // Check if collection exists
             Optional<MovieCollection> existing = movieCollectionRepository
                 .findByMovie_MovieIdAndTown_TownIdAndDayCode(
                     movie.getMovieId(), town.getTownId(), dayCode
@@ -151,6 +144,7 @@ public class MovieController {
             response.put("message", "Collection saved successfully");
             response.put("data", collection);
             return ResponseEntity.ok(response);
+
         } catch (Exception e) {
             Map<String, Object> response = new HashMap<>();
             response.put("success", false);
